@@ -1217,7 +1217,12 @@ static VecFuncCacheEntry vec_func_table[] = {{1724,
         {vnumeric_stddev_samp_final<true, true>,
             vnumeric_stddev_samp_final<true, false>,
             vnumeric_stddev_samp_final<false, true>,
-            vnumeric_stddev_samp_final<false, false>}}};
+            vnumeric_stddev_samp_final<false, false>}},
+    {7000,
+        {
+            vpython_udf             //python_udf
+        }}
+        };
 
 void InitGlobalVecFuncMap()
 {

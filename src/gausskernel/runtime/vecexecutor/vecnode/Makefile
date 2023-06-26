@@ -29,6 +29,11 @@ ifneq "$(MAKECMDGOALS)" "clean"
     endif
   endif
 endif
+
+override CPPFLAGS := -I. -I$(srcdir) $(python_includespec) $(filter-out -fPIE, $(CPPFLAGS))
+
+rpathdir = $(python_libdir)
+
 OBJS = vechashtable.o vecagg.o vecplainagg.o vecsortagg.o vechashagg.o  vecsort.o vechashjoin.o vecstream.o  vectortorow.o \
         veccstore.o veccstoreindexscan.o vecrowtovector.o \
 	  vecforeignscan.o vecmodifytable.o vecremotequery.o vecresult.o  vecscan.o vecsubqueryscan.o vecpartiterator.o \

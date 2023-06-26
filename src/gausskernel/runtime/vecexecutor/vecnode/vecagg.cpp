@@ -56,6 +56,8 @@
 #include "vecexecutor/vecsortagg.h"
 #include "vecexecutor/vechashagg.h"
 
+#include "Python.h"
+
 static void DispatchAggFunction(AggStatePerAgg agg_state, VecAggInfo* agg_info, bool use_sonichash = false);
 
 extern bool CodeGenThreadObjectReady();
@@ -1731,4 +1733,105 @@ void ExecEarlyFreeVecAggregation(VecAggState* node)
 
     plan_state->earlyFreed = true;
     ExecEarlyFree(outerPlanState(node));
+}
+
+
+//Python UDF向量化版本
+ScalarVector* vpython_udf(PG_FUNCTION_ARGS){
+	Py_InitializeEx(!Py_IsInitialized());
+	//use Python Interpreter
+	PyObject *pModule, *pFunc, *dic, *v;
+	PyObject *pArgs, *pResult, *pList1, *pList2;
+	//load main module
+	pModule = PyImport_AddModule("__main__");
+	if (!pModule){
+        Py_FinalizeEx();
+		ereport(ERROR,
+			(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),errmsg("fail to add module")));
+	}
+	//add UDF to the main module
+	dic = PyModule_GetDict(pModule);
+
+    //test i+j 
+	const char *pycall = "def pyfun(i,j):\n\
+\tzipped = zip(i,j)\n\
+\tmapped = map(sum,zipped)\n\
+\treturn tuple(mapped)";
+	
+    //test pycall 执行来自pycall的源代码
+    v = PyRun_StringFlags(pycall, Py_file_input, dic, dic, NULL);
+    if(v == NULL) {
+        Py_FinalizeEx();
+		ereport(ERROR,
+			(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),errmsg("Could not parse Python code")));
+    }
+    Py_DECREF(v);
+    Py_DECREF(dic);
+    	
+    //obtain function pointer called pFunc
+    pFunc = PyObject_GetAttrString(pModule, "pyfun");
+    if(!pFunc || !PyCallable_Check(pFunc)) {
+        Py_FinalizeEx();
+    	ereport(ERROR,
+			(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),errmsg("Failed to load function")));
+    }
+	
+    //obtain Vector
+    ScalarValue *parg1 = PG_GETARG_VECVAL(0);
+    //uint8       *flag1 = PG_GETARG_VECTOR(0)->m_flag;
+    ScalarValue *parg2 = PG_GETARG_VECVAL(1);
+    //uint8       *flag2 = PG_GETARG_VECTOR(0)->m_flag;      
+    
+    int32 nvalues = 0;
+    ScalarVector *VecResult = NULL;
+    bool *pselection = NULL;
+
+    nvalues = PG_GETARG_INT32(2);
+    VecResult = PG_GETARG_VECTOR(3);
+    pselection = PG_GETARG_SELECTION(4);
+
+    uint8 *ResultFlag = VecResult->m_flag;
+    if (pselection == NULL)
+    {
+        //obtain arg_cnt
+        int argNum = 2;
+
+        pArgs = PyTuple_New(argNum);
+        pList1 = PyTuple_New(nvalues);
+        pList2 = PyTuple_New(nvalues);
+        
+        //set PyList1 according to its type
+        for (int i = 0; i < nvalues; i++){
+            PyTuple_SetItem(pList1, i, PyLong_FromLong(parg1[i]));
+            PyTuple_SetItem(pList2, i, PyLong_FromLong(parg2[i]));
+        }
+
+        PyTuple_SetItem(pArgs, argNum - 2, pList1);
+        PyTuple_SetItem(pArgs, argNum - 1, pList2);
+
+        //call the function to execute pFunc
+        pResult = PyObject_CallObject(pFunc, pArgs);
+    	
+        Py_DECREF(pModule);
+        Py_DECREF(pFunc);
+	    Py_DECREF(pArgs);
+
+	    //extract result
+	    if(pResult == NULL){
+            Py_FinalizeEx();
+    	    ereport(ERROR,
+			    (errcode(ERRCODE_NULL_VALUE_NOT_ALLOWED),errmsg("have not get result")));
+	    }
+	    else if(PyTuple_Check(pResult)){
+            for (int i = 0; i < nvalues; i++){
+                VecResult->m_vals[i] = int32(PyLong_AsLong(PyTuple_GetItem(pResult,i)));
+                SET_NOTNULL(ResultFlag[i]);
+            }
+        }
+        Py_DECREF(pResult);
+        Py_FinalizeEx();
+    }
+
+    VecResult->m_rows = nvalues;
+    return VecResult;
 }
