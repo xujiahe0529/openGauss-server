@@ -20,5 +20,6 @@ objfiles.txt
 /GNUmakefile
 /config.status
 /ereport.txt
+/dest
 
 /build/script/version.cfg
