@@ -8,11 +8,12 @@ subdir = src/common/backend/utils/adt
 top_builddir = ../../../../..
 include $(top_builddir)/src/Makefile.global
 
-# seems to be required for some date/time stuff 1999/07/22 bjm
-ifeq "$(findstring alpha,$(host_cpu))" "alpha"
-ifeq "$(GCC)" "yes"
-override CFLAGS+= -mieee
-endif
+# On some platforms we can only build PL/Python if libpython is a
+# shared library.  Since there is no official way to determine this
+# (at least not in pre-2.3 Python), we see if there is a file that is
+# named like a shared library.
+ifneq (,$(wildcard $(python_libdir)/libpython*$(DLSUFFIX)*))
+shared_libpython = yes
 endif
 
 ifneq "$(MAKECMDGOALS)" "clean"
@@ -22,6 +23,13 @@ ifneq "$(MAKECMDGOALS)" "clean"
     endif
   endif
 endif
+
+
+override CPPFLAGS := -I. -I$(srcdir) $(python_includespec) $(filter-out -fPIE, $(CPPFLAGS))
+
+rpathdir = $(python_libdir)
+
+
 OBJS = acl.o arrayfuncs.o array_selfuncs.o array_typanalyze.o \
 	array_userfuncs.o arrayutils.o bool.o \
 	cash.o char.o date.o datetime.o datum.o domains.o \

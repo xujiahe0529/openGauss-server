@@ -5821,4 +5821,7 @@ DATA(insert OID = 4463 (  byteawithoutorderwithequalcolcmpbyteal		   PGNSP PGUID
 DATA(insert OID = 4369 ( hll_hash_byteawithoutorderwithequalcol PGNSP PGUID 12 1 0 0 - f f f f t f i 1 0 4303 "4402" _null_ _null_ _null_  _null_ hll_hash_varlena _null_ _null_ _null_ "" f f f));
 DESCR("hypper log log hash a byteawithoutorderwithequalcol type");
 DATA(insert OID = 4449 (  byteawithoutorderwithequalcoltypmodin  PGNSP PGUID 12 1 0 0 0 f f f f t f i 1 0 23 "1263" _null_ _null_ _null_ _null_  byteawithoutorderwithequalcoltypmodin _null_ _null_ _null_ "" f _null_ f));
+
+DATA(insert OID = 7000 (  python_udf		   PGNSP PGUID 12 1 0 0 0 f f f f t f i 2 0 23 "23 23" _null_ _null_ _null_ _null_ python_udf _null_ _null_ _null_ "" f));
+DESCR("python UDF");
 #endif   /* PG_PROC_H */

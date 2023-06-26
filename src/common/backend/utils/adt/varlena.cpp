@@ -15,7 +15,7 @@
  */
 #include "postgres.h"
 #include "knl/knl_variable.h"
-
+#include "Python.h"
 #include <limits.h>
 
 #include "access/hash.h"
@@ -1424,7 +1424,7 @@ static int text_position(text* t1, text* t2)
 {
     TextPositionState state;
     int result;
-
+    
     text_position_setup(t1, t2, &state);
     result = text_position_next(1, &state);
     text_position_cleanup(&state);
@@ -7111,3 +7111,76 @@ Datum float8_text(PG_FUNCTION_ARGS)
     pfree_ext(tmp);
     PG_RETURN_DATUM(result);
 }
+
+Datum python_udf(PG_FUNCTION_ARGS){
+	Py_InitializeEx(!Py_IsInitialized());
+	//use Python Interpreter
+	//load main module
+	PyObject *pModule = PyImport_AddModule("__main__");
+	if (!pModule){
+        Py_FinalizeEx();
+		ereport(ERROR,
+			(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),errmsg("fail to add module")));
+	}
+	//add UDF to the main module
+	PyObject *dic = PyModule_GetDict(pModule);
+    //test i=i*2 
+	const char *pycall = "def pyfun(i,j):\n\
+\tsum = i+j\n\
+\treturn sum";
+
+    //test pycall 执行来自pycall的源代码
+    PyObject *v = PyRun_StringFlags(pycall, Py_file_input, dic, dic, NULL);
+    if(v == NULL) {
+        Py_FinalizeEx();
+		ereport(ERROR,
+			(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),errmsg("Could not parse Python code")));
+    }
+    Py_DECREF(v);
+    Py_DECREF(dic);
+    	
+    //obtain function pointer called pFunc
+    PyObject *pFunc = PyObject_GetAttrString(pModule, "pyfun");
+    if(!pFunc || !PyCallable_Check(pFunc)) {
+        Py_FinalizeEx();
+    	ereport(ERROR,
+			(errcode(ERRCODE_EXTERNAL_ROUTINE_INVOCATION_EXCEPTION),errmsg("Failed to load function")));
+    }
+    	
+    //obtain arg_cnt
+    int argNum = 2;
+    
+    //obtain args
+    int i = PG_GETARG_INT32(0);
+    int j = PG_GETARG_INT32(1);
+
+    PyObject *pArgs = PyTuple_New(argNum);
+ 	PyTuple_SetItem(pArgs, argNum - 2, PyLong_FromLong(i));
+    PyTuple_SetItem(pArgs, argNum - 1, PyLong_FromLong(j));
+
+    //call the function to execute pFunc
+    PyObject *pResult = PyObject_CallObject(pFunc, pArgs);
+    	
+    Py_DECREF(pModule);
+    Py_DECREF(pFunc);
+	Py_DECREF(pArgs);
+
+	int32 Result = 0;
+
+	//extract result
+	if(pResult == NULL){
+        Py_FinalizeEx();
+    	ereport(ERROR,
+			(errcode(ERRCODE_NULL_VALUE_NOT_ALLOWED),errmsg("have not get result")));
+	}
+	else if(PyLong_Check(pResult)){
+		Result = int32(PyLong_AsLong(pResult));
+    }
+    Py_DECREF(pResult);
+    Py_FinalizeEx();
+
+    //return function value
+    PG_RETURN_INT32(Result);
+}
+
+

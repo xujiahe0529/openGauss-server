@@ -294,6 +294,8 @@ ifneq (, $(findstring __USE_NUMA, $(CFLAGS)))
 	LIBS += -lnuma
 endif
 
+LIBS += -fPIC -L/usr/lib64 -lpython3.6m -lpthread -ldl  -lutil -lm
+
 ##########################################################################
 
 all: submake-libpgport submake-schemapg libgstrace submake-libalarmclient gaussdb $(POSTGRES_IMP)

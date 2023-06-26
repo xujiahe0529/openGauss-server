@@ -1145,6 +1145,8 @@ extern Datum text_reverse(PG_FUNCTION_ARGS);
 extern Datum text_format(PG_FUNCTION_ARGS);
 extern Datum text_format_nv(PG_FUNCTION_ARGS);
 
+extern Datum python_udf(PG_FUNCTION_ARGS);
+
 /* byteawithoutorderwithequalcol.cpp */
 extern Datum byteawithoutordercolin(PG_FUNCTION_ARGS);
 extern Datum byteawithoutorderwithequalcolin(PG_FUNCTION_ARGS);
@@ -1638,6 +1640,7 @@ extern ScalarVector* vinterval_sum(PG_FUNCTION_ARGS);
 extern ScalarVector* vcash_sum(PG_FUNCTION_ARGS);
 extern ScalarVector* vintervalpl(PG_FUNCTION_ARGS);
 extern ScalarVector* vbpcharlen(PG_FUNCTION_ARGS);
+extern ScalarVector* vpython_udf(PG_FUNCTION_ARGS);
 
 extern Datum int1_text(PG_FUNCTION_ARGS);
 extern Datum int2_text(PG_FUNCTION_ARGS);
